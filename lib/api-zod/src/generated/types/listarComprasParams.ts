@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListarVentasParams = {
-fecha?: string;
-estado?: string;
+export type ListarComprasParams = {
 fechaDesde?: string;
 fechaHasta?: string;
 };

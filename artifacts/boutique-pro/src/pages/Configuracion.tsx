@@ -3,14 +3,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useObtenerConfiguracion,
   useActualizarConfiguracion,
+  useActualizarTasaBcvDesdeApi,
   getObtenerConfiguracionQueryKey,
+  getListarProductosQueryKey,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Settings, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { RefreshCw, CheckCircle2, Settings, Globe, Wifi } from "lucide-react";
 import { formatDate } from "@/lib/formatters";
 
 export default function Configuracion() {
@@ -23,22 +26,21 @@ export default function Configuracion() {
   });
 
   const actualizarMut = useActualizarConfiguracion();
+  const bcvApiMut = useActualizarTasaBcvDesdeApi();
 
   useEffect(() => {
-    if (config) {
-      setTasaInput(String(config.tasaBcv));
-    }
+    if (config) setTasaInput(String(config.tasaBcv));
   }, [config]);
 
   const handleGuardar = () => {
     const tasa = parseFloat(tasaInput);
     if (isNaN(tasa) || tasa <= 0) return;
-
     actualizarMut.mutate(
       { data: { tasaBcv: tasa } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getObtenerConfiguracionQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListarProductosQueryKey() });
           setGuardado(true);
           setTimeout(() => setGuardado(false), 3000);
         },
@@ -46,18 +48,33 @@ export default function Configuracion() {
     );
   };
 
+  const handleActualizarDesdeApi = () => {
+    bcvApiMut.mutate(
+      {},
+      {
+        onSuccess: (data) => {
+          setTasaInput(String(data.tasaBcv));
+          queryClient.invalidateQueries({ queryKey: getObtenerConfiguracionQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListarProductosQueryKey() });
+          setGuardado(true);
+          setTimeout(() => setGuardado(false), 4000);
+        },
+      }
+    );
+  };
+
   const tasaValida = parseFloat(tasaInput) > 0 && !isNaN(parseFloat(tasaInput));
   const sinCambios = config ? parseFloat(tasaInput) === config.tasaBcv : true;
+  const tasaPreview = parseFloat(tasaInput) || config?.tasaBcv || 46.5;
 
   return (
     <div className="space-y-5 max-w-xl">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Configuracion</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Ajustes del sistema y tasas de cambio
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">Ajustes del sistema y tasa de cambio</p>
       </div>
 
+      {/* BCV Card */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -65,35 +82,63 @@ export default function Configuracion() {
             Tasa BCV
           </CardTitle>
           <CardDescription>
-            Tasa del Banco Central de Venezuela para conversion de precios en bolivares.
-            Se aplica en cada nueva venta al momento de registrarla.
+            Tipo de cambio oficial del Banco Central de Venezuela. Se aplica en ventas y compras al momento de registrarlas.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading ? (
             <div className="space-y-3">
-              <Skeleton className="h-4 w-32" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-4 w-48" />
             </div>
           ) : (
             <>
+              {/* Auto-fetch button */}
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleActualizarDesdeApi}
+                disabled={bcvApiMut.isPending}
+              >
+                {bcvApiMut.isPending ? (
+                  <>
+                    <Wifi className="w-4 h-4 animate-pulse" />
+                    Consultando BCV...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-4 h-4" />
+                    Actualizar desde API del BCV
+                  </>
+                )}
+              </Button>
+
+              {bcvApiMut.isError && (
+                <p className="text-sm text-destructive">
+                  No se pudo obtener la tasa. Verifica tu conexion o ingresala manualmente.
+                </p>
+              )}
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">o ingresa manualmente</span>
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label>Tasa actual (Bs. por USD)</Label>
+                <Label>Tasa (Bs. por USD)</Label>
                 <div className="flex gap-3">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
-                      Bs.
-                    </span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">Bs.</span>
                     <Input
                       type="number"
                       step="0.01"
                       min="0.01"
                       value={tasaInput}
-                      onChange={(e) => {
-                        setTasaInput(e.target.value);
-                        setGuardado(false);
-                      }}
+                      onChange={(e) => { setTasaInput(e.target.value); setGuardado(false); }}
                       className="pl-10 text-lg font-semibold"
                       placeholder="46.50"
                     />
@@ -101,7 +146,6 @@ export default function Configuracion() {
                   <Button
                     onClick={handleGuardar}
                     disabled={!tasaValida || sinCambios || actualizarMut.isPending}
-                    className="shrink-0"
                   >
                     {actualizarMut.isPending ? "Guardando..." : "Guardar"}
                   </Button>
@@ -116,31 +160,37 @@ export default function Configuracion() {
               )}
 
               {config && (
-                <p className="text-xs text-muted-foreground">
-                  Ultima actualizacion: {formatDate(config.actualizadoEn)}
-                </p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Ultima actualizacion: {formatDate(config.actualizadoEn)}</span>
+                  {config.fuente && config.fuente !== "manual" ? (
+                    <Badge variant="secondary" className="gap-1">
+                      <Globe className="w-3 h-3" />
+                      {config.fuente}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Manual</Badge>
+                  )}
+                </div>
               )}
 
-              <div className="mt-4 p-4 rounded-lg bg-muted/50 border text-sm space-y-2">
-                <p className="font-medium text-foreground">Ejemplo de conversion:</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">$10.00 USD =</span>
-                  <span className="font-semibold">
-                    Bs. {(10 * (parseFloat(tasaInput) || config?.tasaBcv || 0)).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">$50.00 USD =</span>
-                  <span className="font-semibold">
-                    Bs. {(50 * (parseFloat(tasaInput) || config?.tasaBcv || 0)).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
+              {/* Preview */}
+              <div className="p-4 rounded-xl bg-muted/50 border space-y-2 text-sm">
+                <p className="font-semibold text-foreground">Vista previa de conversion:</p>
+                {[10, 25, 50, 100].map((usd) => (
+                  <div key={usd} className="flex items-center justify-between">
+                    <span className="text-muted-foreground">${usd}.00 USD</span>
+                    <span className="font-bold">
+                      Bs. {(usd * tasaPreview).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ))}
               </div>
             </>
           )}
         </CardContent>
       </Card>
 
+      {/* System info */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -148,25 +198,18 @@ export default function Configuracion() {
             Informacion del Sistema
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Sistema</span>
-            <span className="font-medium">Boutique Pro</span>
-          </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Moneda base</span>
-            <span className="font-medium">USD (Dolares americanos)</span>
-          </div>
-          <div className="flex justify-between py-2 border-b">
-            <span className="text-muted-foreground">Moneda secundaria</span>
-            <span className="font-medium">VES (Bolivares)</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-muted-foreground">Tasa BCV vigente</span>
-            <span className="font-semibold">
-              {isLoading ? "—" : `Bs. ${config?.tasaBcv.toFixed(2)}`}
-            </span>
-          </div>
+        <CardContent className="space-y-0 text-sm divide-y">
+          {[
+            ["Sistema", "Boutique Pro"],
+            ["Moneda base", "USD (Dolares americanos)"],
+            ["Moneda secundaria", "VES (Bolivares soberanos)"],
+            ["Tasa BCV vigente", isLoading ? "..." : `Bs. ${config?.tasaBcv.toFixed(2)}`],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between py-2.5">
+              <span className="text-muted-foreground">{label}</span>
+              <span className="font-medium">{value}</span>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>

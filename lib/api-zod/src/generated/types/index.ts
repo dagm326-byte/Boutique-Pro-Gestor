@@ -6,10 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './compra';
+export * from './compraInput';
+export * from './compraItem';
+export * from './compraItemInput';
 export * from './configuracion';
 export * from './configuracionUpdate';
 export * from './dashboard';
 export * from './healthStatus';
+export * from './listarComprasParams';
 export * from './listarProductosParams';
 export * from './listarVentasParams';
 export * from './obtenerProductosMasVendidosParams';

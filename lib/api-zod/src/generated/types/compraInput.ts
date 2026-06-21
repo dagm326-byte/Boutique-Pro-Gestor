@@ -5,10 +5,10 @@
  * Boutique Pro - API de gestión para boutique venezolana
  * OpenAPI spec version: 0.1.0
  */
+import type { CompraItemInput } from './compraItemInput';
 
-export type ListarVentasParams = {
-fecha?: string;
-estado?: string;
-fechaDesde?: string;
-fechaHasta?: string;
-};
+export interface CompraInput {
+  proveedor: string;
+  notas?: string;
+  items: CompraItemInput[];
+}

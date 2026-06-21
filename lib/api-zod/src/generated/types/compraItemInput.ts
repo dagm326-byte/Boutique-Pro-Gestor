@@ -6,9 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListarVentasParams = {
-fecha?: string;
-estado?: string;
-fechaDesde?: string;
-fechaHasta?: string;
-};
+export interface CompraItemInput {
+  productoId: number;
+  cantidad: number;
+  costoUnitarioUsd: number;
+}

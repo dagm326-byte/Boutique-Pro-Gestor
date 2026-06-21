@@ -13,6 +13,7 @@ export interface ProductoInput {
   talla: string;
   color: string;
   precioUsd: number;
+  costoUsd?: number;
   stock: number;
   stockMinimo?: number;
 }

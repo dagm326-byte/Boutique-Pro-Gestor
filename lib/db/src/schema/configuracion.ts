@@ -1,10 +1,11 @@
-import { pgTable, serial, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, numeric, timestamp, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const configuracionTable = pgTable("configuracion", {
   id: serial("id").primaryKey(),
   tasaBcv: numeric("tasa_bcv", { precision: 10, scale: 2 }).notNull().default("46.50"),
+  fuente: text("fuente").notNull().default("manual"),
   actualizadoEn: timestamp("actualizado_en").notNull().defaultNow(),
 });
 

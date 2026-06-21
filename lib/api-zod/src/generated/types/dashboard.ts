@@ -13,4 +13,7 @@ export interface Dashboard {
   totalProductos: number;
   productosStockBajo: number;
   facturasHoy: number;
+  gananciasDia: number;
+  gananciasHistoricas: number;
+  totalComprasHoy: number;
 }

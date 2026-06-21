@@ -9,7 +9,6 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -34,8 +33,9 @@ export const ListarProductosResponseItem = zod.object({
   "talla": zod.string(),
   "color": zod.string(),
   "precioUsd": zod.number(),
+  "costoUsd": zod.number(),
   "stock": zod.number(),
-  "stockMinimo": zod.number().optional(),
+  "stockMinimo": zod.number(),
   "creadoEn": zod.string()
 })
 export const ListarProductosResponse = zod.array(ListarProductosResponseItem)
@@ -51,6 +51,7 @@ export const CrearProductoBody = zod.object({
   "talla": zod.string(),
   "color": zod.string(),
   "precioUsd": zod.number(),
+  "costoUsd": zod.number().optional(),
   "stock": zod.number(),
   "stockMinimo": zod.number().optional()
 })
@@ -71,8 +72,9 @@ export const ObtenerProductoResponse = zod.object({
   "talla": zod.string(),
   "color": zod.string(),
   "precioUsd": zod.number(),
+  "costoUsd": zod.number(),
   "stock": zod.number(),
-  "stockMinimo": zod.number().optional(),
+  "stockMinimo": zod.number(),
   "creadoEn": zod.string()
 })
 
@@ -91,6 +93,7 @@ export const ActualizarProductoBody = zod.object({
   "talla": zod.string().optional(),
   "color": zod.string().optional(),
   "precioUsd": zod.number().optional(),
+  "costoUsd": zod.number().optional(),
   "stock": zod.number().optional(),
   "stockMinimo": zod.number().optional()
 })
@@ -103,8 +106,9 @@ export const ActualizarProductoResponse = zod.object({
   "talla": zod.string(),
   "color": zod.string(),
   "precioUsd": zod.number(),
+  "costoUsd": zod.number(),
   "stock": zod.number(),
-  "stockMinimo": zod.number().optional(),
+  "stockMinimo": zod.number(),
   "creadoEn": zod.string()
 })
 
@@ -122,7 +126,9 @@ export const EliminarProductoParams = zod.object({
  */
 export const ListarVentasQueryParams = zod.object({
   "fecha": zod.coerce.string().optional(),
-  "estado": zod.coerce.string().optional()
+  "estado": zod.coerce.string().optional(),
+  "fechaDesde": zod.coerce.string().optional(),
+  "fechaHasta": zod.coerce.string().optional()
 })
 
 export const ListarVentasResponseItem = zod.object({
@@ -222,6 +228,78 @@ export const CancelarVentaResponse = zod.object({
 
 
 /**
+ * @summary Listar compras / reposiciones de stock
+ */
+export const ListarComprasQueryParams = zod.object({
+  "fechaDesde": zod.coerce.string().optional(),
+  "fechaHasta": zod.coerce.string().optional()
+})
+
+export const ListarComprasResponseItem = zod.object({
+  "id": zod.number(),
+  "numeroOrden": zod.string(),
+  "proveedor": zod.string(),
+  "totalUsd": zod.number(),
+  "tasaBcv": zod.number(),
+  "totalBs": zod.number(),
+  "notas": zod.string().nullish(),
+  "creadoEn": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productoId": zod.number(),
+  "nombreProducto": zod.string(),
+  "codigoProducto": zod.string().optional(),
+  "cantidad": zod.number(),
+  "costoUnitarioUsd": zod.number(),
+  "subtotalUsd": zod.number()
+}))
+})
+export const ListarComprasResponse = zod.array(ListarComprasResponseItem)
+
+
+/**
+ * @summary Registrar una compra / reposición de stock
+ */
+export const CrearCompraBody = zod.object({
+  "proveedor": zod.string(),
+  "notas": zod.string().optional(),
+  "items": zod.array(zod.object({
+  "productoId": zod.number(),
+  "cantidad": zod.number(),
+  "costoUnitarioUsd": zod.number()
+}))
+})
+
+
+/**
+ * @summary Obtener compra por ID
+ */
+export const ObtenerCompraParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ObtenerCompraResponse = zod.object({
+  "id": zod.number(),
+  "numeroOrden": zod.string(),
+  "proveedor": zod.string(),
+  "totalUsd": zod.number(),
+  "tasaBcv": zod.number(),
+  "totalBs": zod.number(),
+  "notas": zod.string().nullish(),
+  "creadoEn": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productoId": zod.number(),
+  "nombreProducto": zod.string(),
+  "codigoProducto": zod.string().optional(),
+  "cantidad": zod.number(),
+  "costoUnitarioUsd": zod.number(),
+  "subtotalUsd": zod.number()
+}))
+})
+
+
+/**
  * @summary Obtener resumen del negocio (KPIs)
  */
 export const ObtenerDashboardResponse = zod.object({
@@ -230,7 +308,10 @@ export const ObtenerDashboardResponse = zod.object({
   "valorInventario": zod.number(),
   "totalProductos": zod.number(),
   "productosStockBajo": zod.number(),
-  "facturasHoy": zod.number()
+  "facturasHoy": zod.number(),
+  "gananciasDia": zod.number(),
+  "gananciasHistoricas": zod.number(),
+  "totalComprasHoy": zod.number()
 })
 
 
@@ -268,6 +349,7 @@ export const ObtenerVentasPorDiaResponse = zod.array(ObtenerVentasPorDiaResponse
 export const ObtenerConfiguracionResponse = zod.object({
   "id": zod.number(),
   "tasaBcv": zod.number(),
+  "fuente": zod.string().optional(),
   "actualizadoEn": zod.string()
 })
 
@@ -282,6 +364,18 @@ export const ActualizarConfiguracionBody = zod.object({
 export const ActualizarConfiguracionResponse = zod.object({
   "id": zod.number(),
   "tasaBcv": zod.number(),
+  "fuente": zod.string().optional(),
+  "actualizadoEn": zod.string()
+})
+
+
+/**
+ * @summary Obtener y guardar tasa BCV desde API externa
+ */
+export const ActualizarTasaBcvDesdeApiResponse = zod.object({
+  "id": zod.number(),
+  "tasaBcv": zod.number(),
+  "fuente": zod.string().optional(),
   "actualizadoEn": zod.string()
 })
 

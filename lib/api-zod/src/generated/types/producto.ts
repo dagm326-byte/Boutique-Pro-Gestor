@@ -14,7 +14,8 @@ export interface Producto {
   talla: string;
   color: string;
   precioUsd: number;
+  costoUsd: number;
   stock: number;
-  stockMinimo?: number;
+  stockMinimo: number;
   creadoEn: string;
 }

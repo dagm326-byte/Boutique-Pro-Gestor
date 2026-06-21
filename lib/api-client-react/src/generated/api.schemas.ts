@@ -17,8 +17,9 @@ export interface Producto {
   talla: string;
   color: string;
   precioUsd: number;
+  costoUsd: number;
   stock: number;
-  stockMinimo?: number;
+  stockMinimo: number;
   creadoEn: string;
 }
 
@@ -29,6 +30,7 @@ export interface ProductoInput {
   talla: string;
   color: string;
   precioUsd: number;
+  costoUsd?: number;
   stock: number;
   stockMinimo?: number;
 }
@@ -40,6 +42,7 @@ export interface ProductoUpdate {
   talla?: string;
   color?: string;
   precioUsd?: number;
+  costoUsd?: number;
   stock?: number;
   stockMinimo?: number;
 }
@@ -79,6 +82,41 @@ export interface VentaInput {
   items: VentaItemInput[];
 }
 
+export interface CompraItem {
+  id: number;
+  productoId: number;
+  nombreProducto: string;
+  codigoProducto?: string;
+  cantidad: number;
+  costoUnitarioUsd: number;
+  subtotalUsd: number;
+}
+
+export interface Compra {
+  id: number;
+  numeroOrden: string;
+  proveedor: string;
+  totalUsd: number;
+  tasaBcv: number;
+  totalBs: number;
+  /** @nullable */
+  notas?: string | null;
+  creadoEn: string;
+  items: CompraItem[];
+}
+
+export interface CompraItemInput {
+  productoId: number;
+  cantidad: number;
+  costoUnitarioUsd: number;
+}
+
+export interface CompraInput {
+  proveedor: string;
+  notas?: string;
+  items: CompraItemInput[];
+}
+
 export interface Dashboard {
   ventasHoy: number;
   ventasHistoricas: number;
@@ -86,6 +124,9 @@ export interface Dashboard {
   totalProductos: number;
   productosStockBajo: number;
   facturasHoy: number;
+  gananciasDia: number;
+  gananciasHistoricas: number;
+  totalComprasHoy: number;
 }
 
 export interface ProductoVendido {
@@ -105,6 +146,7 @@ export interface VentaDia {
 export interface Configuracion {
   id: number;
   tasaBcv: number;
+  fuente?: string;
   actualizadoEn: string;
 }
 
@@ -121,6 +163,13 @@ stockBajo?: boolean;
 export type ListarVentasParams = {
 fecha?: string;
 estado?: string;
+fechaDesde?: string;
+fechaHasta?: string;
+};
+
+export type ListarComprasParams = {
+fechaDesde?: string;
+fechaHasta?: string;
 };
 
 export type ObtenerProductosMasVendidosParams = {

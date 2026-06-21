@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Configuracion {
+export interface CompraItem {
   id: number;
-  tasaBcv: number;
-  fuente?: string;
-  actualizadoEn: string;
+  productoId: number;
+  nombreProducto: string;
+  codigoProducto?: string;
+  cantidad: number;
+  costoUnitarioUsd: number;
+  subtotalUsd: number;
 }

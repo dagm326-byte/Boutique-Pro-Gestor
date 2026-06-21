@@ -10,6 +10,7 @@ export const productosTable = pgTable("productos", {
   talla: text("talla").notNull(),
   color: text("color").notNull(),
   precioUsd: numeric("precio_usd", { precision: 10, scale: 2 }).notNull(),
+  costoUsd: numeric("costo_usd", { precision: 10, scale: 2 }).notNull().default("0"),
   stock: integer("stock").notNull().default(0),
   stockMinimo: integer("stock_minimo").notNull().default(3),
   creadoEn: timestamp("creado_en").notNull().defaultNow(),

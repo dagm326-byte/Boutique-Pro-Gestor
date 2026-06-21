@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, productosTable } from "@workspace/db";
-import { eq, and, lte } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   ListarProductosQueryParams,
   CrearProductoBody,
@@ -21,6 +21,7 @@ function mapProducto(p: typeof productosTable.$inferSelect) {
     talla: p.talla,
     color: p.color,
     precioUsd: parseFloat(p.precioUsd),
+    costoUsd: parseFloat(p.costoUsd ?? "0"),
     stock: p.stock,
     stockMinimo: p.stockMinimo,
     creadoEn: p.creadoEn.toISOString(),
@@ -35,7 +36,6 @@ router.get("/productos", async (req, res) => {
   }
 
   const { categoria, talla, stockBajo } = parsed.data;
-
   const conditions = [];
   if (categoria) conditions.push(eq(productosTable.categoria, categoria));
   if (talla) conditions.push(eq(productosTable.talla, talla));
@@ -70,6 +70,7 @@ router.post("/productos", async (req, res) => {
       talla: data.talla,
       color: data.color,
       precioUsd: String(data.precioUsd),
+      costoUsd: String(data.costoUsd ?? 0),
       stock: data.stock,
       stockMinimo: data.stockMinimo ?? 3,
     })
@@ -119,6 +120,7 @@ router.patch("/productos/:id", async (req, res) => {
   if (data.talla !== undefined) updates.talla = data.talla;
   if (data.color !== undefined) updates.color = data.color;
   if (data.precioUsd !== undefined) updates.precioUsd = String(data.precioUsd);
+  if (data.costoUsd !== undefined) updates.costoUsd = String(data.costoUsd);
   if (data.stock !== undefined) updates.stock = data.stock;
   if (data.stockMinimo !== undefined) updates.stockMinimo = data.stockMinimo;
 

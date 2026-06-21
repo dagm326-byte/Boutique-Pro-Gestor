@@ -13,6 +13,8 @@ tags:
     description: Gestión de inventario de productos
   - name: ventas
     description: Gestión de ventas y facturas
+  - name: compras
+    description: Gestión de compras y reposición de stock
   - name: configuracion
     description: Configuración del sistema
   - name: resumen
@@ -24,7 +26,6 @@ paths:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -151,6 +152,14 @@ paths:
           in: query
           schema:
             type: string
+        - name: fechaDesde
+          in: query
+          schema:
+            type: string
+        - name: fechaHasta
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: Lista de facturas
@@ -217,6 +226,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Venta"
+
+  # ── COMPRAS ────────────────────────────────────────────────
+  /compras:
+    get:
+      operationId: listarCompras
+      tags: [compras]
+      summary: Listar compras / reposiciones de stock
+      parameters:
+        - name: fechaDesde
+          in: query
+          schema:
+            type: string
+        - name: fechaHasta
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de compras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Compra"
+    post:
+      operationId: crearCompra
+      tags: [compras]
+      summary: Registrar una compra / reposición de stock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompraInput"
+      responses:
+        "201":
+          description: Compra registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Compra"
+
+  /compras/{id}:
+    get:
+      operationId: obtenerCompra
+      tags: [compras]
+      summary: Obtener compra por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Compra encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Compra"
+        "404":
+          description: Compra no encontrada
 
   # ── RESUMEN ───────────────────────────────────────────────
   /resumen/dashboard:
@@ -298,6 +370,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Configuracion"
 
+  /configuracion/actualizar-tasa-bcv:
+    post:
+      operationId: actualizarTasaBcvDesdeApi
+      tags: [configuracion]
+      summary: Obtener y guardar tasa BCV desde API externa
+      responses:
+        "200":
+          description: Tasa BCV actualizada desde API externa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Configuracion"
+        "503":
+          description: No se pudo obtener la tasa desde la API externa
+
 components:
   schemas:
     HealthStatus:
@@ -310,7 +397,7 @@ components:
 
     Producto:
       type: object
-      required: [id, codigo, nombre, categoria, talla, color, precioUsd, stock, creadoEn]
+      required: [id, codigo, nombre, categoria, talla, color, precioUsd, costoUsd, stock, stockMinimo, creadoEn]
       properties:
         id:
           type: integer
@@ -325,6 +412,8 @@ components:
         color:
           type: string
         precioUsd:
+          type: number
+        costoUsd:
           type: number
         stock:
           type: integer
@@ -349,6 +438,8 @@ components:
           type: string
         precioUsd:
           type: number
+        costoUsd:
+          type: number
         stock:
           type: integer
         stockMinimo:
@@ -368,6 +459,8 @@ components:
         color:
           type: string
         precioUsd:
+          type: number
+        costoUsd:
           type: number
         stock:
           type: integer
@@ -442,9 +535,77 @@ components:
           items:
             $ref: "#/components/schemas/VentaItemInput"
 
+    CompraItem:
+      type: object
+      required: [id, productoId, nombreProducto, cantidad, costoUnitarioUsd, subtotalUsd]
+      properties:
+        id:
+          type: integer
+        productoId:
+          type: integer
+        nombreProducto:
+          type: string
+        codigoProducto:
+          type: string
+        cantidad:
+          type: integer
+        costoUnitarioUsd:
+          type: number
+        subtotalUsd:
+          type: number
+
+    Compra:
+      type: object
+      required: [id, numeroOrden, proveedor, totalUsd, tasaBcv, totalBs, creadoEn, items]
+      properties:
+        id:
+          type: integer
+        numeroOrden:
+          type: string
+        proveedor:
+          type: string
+        totalUsd:
+          type: number
+        tasaBcv:
+          type: number
+        totalBs:
+          type: number
+        notas:
+          type: ["string", "null"]
+        creadoEn:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompraItem"
+
+    CompraItemInput:
+      type: object
+      required: [productoId, cantidad, costoUnitarioUsd]
+      properties:
+        productoId:
+          type: integer
+        cantidad:
+          type: integer
+        costoUnitarioUsd:
+          type: number
+
+    CompraInput:
+      type: object
+      required: [proveedor, items]
+      properties:
+        proveedor:
+          type: string
+        notas:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompraItemInput"
+
     Dashboard:
       type: object
-      required: [ventasHoy, ventasHistoricas, valorInventario, totalProductos, productosStockBajo, facturasHoy]
+      required: [ventasHoy, ventasHistoricas, valorInventario, totalProductos, productosStockBajo, facturasHoy, gananciasDia, gananciasHistoricas, totalComprasHoy]
       properties:
         ventasHoy:
           type: number
@@ -458,6 +619,12 @@ components:
           type: integer
         facturasHoy:
           type: integer
+        gananciasDia:
+          type: number
+        gananciasHistoricas:
+          type: number
+        totalComprasHoy:
+          type: number
 
     ProductoVendido:
       type: object
@@ -493,6 +660,8 @@ components:
           type: integer
         tasaBcv:
           type: number
+        fuente:
+          type: string
         actualizadoEn:
           type: string
 
