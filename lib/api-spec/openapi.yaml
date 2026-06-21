@@ -1,15 +1,23 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Boutique Pro - API de gestión para boutique venezolana
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: productos
+    description: Gestión de inventario de productos
+  - name: ventas
+    description: Gestión de ventas y facturas
+  - name: configuracion
+    description: Configuración del sistema
+  - name: resumen
+    description: Resumen y estadísticas del negocio
+
 paths:
   /healthz:
     get:
@@ -24,6 +32,272 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── PRODUCTOS ────────────────────────────────────────────
+  /productos:
+    get:
+      operationId: listarProductos
+      tags: [productos]
+      summary: Listar todos los productos
+      parameters:
+        - name: categoria
+          in: query
+          schema:
+            type: string
+        - name: talla
+          in: query
+          schema:
+            type: string
+        - name: stockBajo
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de productos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Producto"
+    post:
+      operationId: crearProducto
+      tags: [productos]
+      summary: Crear nuevo producto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductoInput"
+      responses:
+        "201":
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Producto"
+
+  /productos/{id}:
+    get:
+      operationId: obtenerProducto
+      tags: [productos]
+      summary: Obtener producto por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Producto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Producto"
+        "404":
+          description: Producto no encontrado
+    patch:
+      operationId: actualizarProducto
+      tags: [productos]
+      summary: Actualizar producto
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductoUpdate"
+      responses:
+        "200":
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Producto"
+    delete:
+      operationId: eliminarProducto
+      tags: [productos]
+      summary: Eliminar producto
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Producto eliminado
+
+  # ── VENTAS ────────────────────────────────────────────────
+  /ventas:
+    get:
+      operationId: listarVentas
+      tags: [ventas]
+      summary: Listar facturas
+      parameters:
+        - name: fecha
+          in: query
+          schema:
+            type: string
+        - name: estado
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de facturas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Venta"
+    post:
+      operationId: crearVenta
+      tags: [ventas]
+      summary: Crear nueva venta (factura)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VentaInput"
+      responses:
+        "201":
+          description: Venta creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venta"
+
+  /ventas/{id}:
+    get:
+      operationId: obtenerVenta
+      tags: [ventas]
+      summary: Obtener venta por ID con detalle de artículos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Venta con detalle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venta"
+        "404":
+          description: Venta no encontrada
+
+  /ventas/{id}/cancelar:
+    post:
+      operationId: cancelarVenta
+      tags: [ventas]
+      summary: Cancelar venta y restaurar stock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Venta cancelada y stock restaurado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Venta"
+
+  # ── RESUMEN ───────────────────────────────────────────────
+  /resumen/dashboard:
+    get:
+      operationId: obtenerDashboard
+      tags: [resumen]
+      summary: Obtener resumen del negocio (KPIs)
+      responses:
+        "200":
+          description: Resumen del negocio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+
+  /resumen/productos-mas-vendidos:
+    get:
+      operationId: obtenerProductosMasVendidos
+      tags: [resumen]
+      summary: Obtener los productos más vendidos
+      parameters:
+        - name: limite
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Productos más vendidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductoVendido"
+
+  /resumen/ventas-por-dia:
+    get:
+      operationId: obtenerVentasPorDia
+      tags: [resumen]
+      summary: Obtener ventas agrupadas por día (últimos 30 días)
+      responses:
+        "200":
+          description: Ventas por día
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VentaDia"
+
+  # ── CONFIGURACIÓN ─────────────────────────────────────────
+  /configuracion:
+    get:
+      operationId: obtenerConfiguracion
+      tags: [configuracion]
+      summary: Obtener configuración del sistema
+      responses:
+        "200":
+          description: Configuración actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Configuracion"
+    patch:
+      operationId: actualizarConfiguracion
+      tags: [configuracion]
+      summary: Actualizar configuración (tasa BCV, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfiguracionUpdate"
+      responses:
+        "200":
+          description: Configuración actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Configuracion"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +308,197 @@ components:
       required:
         - status
 
+    Producto:
+      type: object
+      required: [id, codigo, nombre, categoria, talla, color, precioUsd, stock, creadoEn]
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        nombre:
+          type: string
+        categoria:
+          type: string
+        talla:
+          type: string
+        color:
+          type: string
+        precioUsd:
+          type: number
+        stock:
+          type: integer
+        stockMinimo:
+          type: integer
+        creadoEn:
+          type: string
+
+    ProductoInput:
+      type: object
+      required: [codigo, nombre, categoria, talla, color, precioUsd, stock]
+      properties:
+        codigo:
+          type: string
+        nombre:
+          type: string
+        categoria:
+          type: string
+        talla:
+          type: string
+        color:
+          type: string
+        precioUsd:
+          type: number
+        stock:
+          type: integer
+        stockMinimo:
+          type: integer
+
+    ProductoUpdate:
+      type: object
+      properties:
+        codigo:
+          type: string
+        nombre:
+          type: string
+        categoria:
+          type: string
+        talla:
+          type: string
+        color:
+          type: string
+        precioUsd:
+          type: number
+        stock:
+          type: integer
+        stockMinimo:
+          type: integer
+
+    VentaItem:
+      type: object
+      required: [id, productoId, nombreProducto, cantidad, precioUnitarioUsd, subtotalUsd]
+      properties:
+        id:
+          type: integer
+        productoId:
+          type: integer
+        nombreProducto:
+          type: string
+        codigoProducto:
+          type: string
+        talla:
+          type: string
+        color:
+          type: string
+        cantidad:
+          type: integer
+        precioUnitarioUsd:
+          type: number
+        subtotalUsd:
+          type: number
+
+    Venta:
+      type: object
+      required: [id, numeroFactura, totalUsd, tasaBcv, totalBs, estado, creadoEn, items]
+      properties:
+        id:
+          type: integer
+        numeroFactura:
+          type: string
+        totalUsd:
+          type: number
+        tasaBcv:
+          type: number
+        totalBs:
+          type: number
+        estado:
+          type: string
+        notas:
+          type: ["string", "null"]
+        creadoEn:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/VentaItem"
+
+    VentaItemInput:
+      type: object
+      required: [productoId, cantidad]
+      properties:
+        productoId:
+          type: integer
+        cantidad:
+          type: integer
+
+    VentaInput:
+      type: object
+      required: [items]
+      properties:
+        notas:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/VentaItemInput"
+
+    Dashboard:
+      type: object
+      required: [ventasHoy, ventasHistoricas, valorInventario, totalProductos, productosStockBajo, facturasHoy]
+      properties:
+        ventasHoy:
+          type: number
+        ventasHistoricas:
+          type: number
+        valorInventario:
+          type: number
+        totalProductos:
+          type: integer
+        productosStockBajo:
+          type: integer
+        facturasHoy:
+          type: integer
+
+    ProductoVendido:
+      type: object
+      required: [productoId, nombre, categoria, totalVendido, totalUsd]
+      properties:
+        productoId:
+          type: integer
+        nombre:
+          type: string
+        categoria:
+          type: string
+        totalVendido:
+          type: integer
+        totalUsd:
+          type: number
+
+    VentaDia:
+      type: object
+      required: [fecha, totalUsd, cantidadFacturas]
+      properties:
+        fecha:
+          type: string
+        totalUsd:
+          type: number
+        cantidadFacturas:
+          type: integer
+
+    Configuracion:
+      type: object
+      required: [id, tasaBcv, actualizadoEn]
+      properties:
+        id:
+          type: integer
+        tasaBcv:
+          type: number
+        actualizadoEn:
+          type: string
+
+    ConfiguracionUpdate:
+      type: object
+      required: [tasaBcv]
+      properties:
+        tasaBcv:
+          type: number
