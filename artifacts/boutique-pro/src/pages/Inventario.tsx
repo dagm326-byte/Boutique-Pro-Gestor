@@ -43,13 +43,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, Package, Search } from "lucide-react";
 import { formatMoneyUsd } from "@/lib/formatters";
 
-const CATEGORIAS = ["Vestidos", "Blusas", "Pantalones", "Accesorios", "Faldas", "Zapatos", "Bolsos"];
-const TALLAS = ["XS", "S", "M", "L", "XL", "XXL"];
+const CATEGORIAS_SUGERIDAS = [
+  "Vestidos",
+  "Blusas",
+  "Pantalones",
+  "Accesorios",
+  "Faldas",
+  "Zapatos",
+  "Bolsos",
+  "Ropa Interior",
+  "Ropa Deportiva",
+  "Pijamas",
+];
+
+const TALLAS = ["XS", "S", "M", "L", "XL", "XXL", "Única"];
 
 const emptyForm = {
   codigo: "",
   nombre: "",
   categoria: "",
+  categoriaCustom: "",
   talla: "",
   color: "",
   precioUsd: "",
@@ -67,6 +80,7 @@ export default function Inventario() {
   const [eliminarId, setEliminarId] = useState<number | null>(null);
   const [editando, setEditando] = useState<Producto | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [categoriaMode, setCategoriaMode] = useState<"lista" | "manual">("lista");
 
   const params: Record<string, string> = {};
   if (filtroCategoria !== "todas") params.categoria = filtroCategoria;
@@ -90,18 +104,27 @@ export default function Inventario() {
     queryClient.invalidateQueries({ queryKey: getObtenerDashboardQueryKey() });
   };
 
+  const getCategoriaFinal = () => {
+    if (categoriaMode === "manual") return form.categoriaCustom.trim();
+    return form.categoria;
+  };
+
   const abrirCrear = () => {
     setEditando(null);
     setForm(emptyForm);
+    setCategoriaMode("lista");
     setDialogOpen(true);
   };
 
   const abrirEditar = (p: Producto) => {
     setEditando(p);
+    const esSugerida = CATEGORIAS_SUGERIDAS.includes(p.categoria);
+    setCategoriaMode(esSugerida ? "lista" : "manual");
     setForm({
       codigo: p.codigo,
       nombre: p.nombre,
-      categoria: p.categoria,
+      categoria: esSugerida ? p.categoria : "",
+      categoriaCustom: !esSugerida ? p.categoria : "",
       talla: p.talla,
       color: p.color,
       precioUsd: String(p.precioUsd),
@@ -113,10 +136,13 @@ export default function Inventario() {
   };
 
   const handleSubmit = () => {
+    const categoriaFinal = getCategoriaFinal();
+    if (!categoriaFinal) return;
+
     const data = {
       codigo: form.codigo,
       nombre: form.nombre,
-      categoria: form.categoria,
+      categoria: categoriaFinal,
       talla: form.talla,
       color: form.color,
       precioUsd: parseFloat(form.precioUsd),
@@ -151,9 +177,15 @@ export default function Inventario() {
   );
 
   const isSubmitting = crearMut.isPending || actualizarMut.isPending;
+  const categoriaOk = categoriaMode === "lista" ? !!form.categoria : !!form.categoriaCustom.trim();
   const formValid =
-    form.codigo && form.nombre && form.categoria && form.talla &&
+    form.codigo && form.nombre && categoriaOk && form.talla &&
     form.color && form.precioUsd && form.stock;
+
+  // Collect unique categories from existing products for filter
+  const categoriasExistentes = Array.from(
+    new Set((productos ?? []).map((p) => p.categoria))
+  ).sort();
 
   return (
     <div className="space-y-5">
@@ -162,7 +194,8 @@ export default function Inventario() {
           <h1 className="text-2xl font-bold text-foreground">Inventario</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? "s" : ""}
-            {" · "}<span className="text-xs">Tasa BCV: Bs. {tasaBcv.toFixed(2)}</span>
+            {" · "}
+            <span className="text-xs">Tasa BCV: Bs. {tasaBcv.toFixed(2)}</span>
           </p>
         </div>
         <Button onClick={abrirCrear} className="gap-2">
@@ -188,7 +221,9 @@ export default function Inventario() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="todas">Todas</SelectItem>
-            {CATEGORIAS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {categoriasExistentes.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={filtroTalla} onValueChange={setFiltroTalla}>
@@ -197,7 +232,9 @@ export default function Inventario() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="todas">Todas</SelectItem>
-            {TALLAS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {TALLAS.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -225,7 +262,9 @@ export default function Inventario() {
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b">
                     {Array.from({ length: 10 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full" /></td>
+                      <td key={j} className="px-4 py-3">
+                        <Skeleton className="h-4 w-full" />
+                      </td>
                     ))}
                   </tr>
                 ))
@@ -243,31 +282,44 @@ export default function Inventario() {
                 productosFiltrados.map((p) => {
                   const stockBajo = p.stock <= p.stockMinimo;
                   const precioBs = p.precioUsd * tasaBcv;
-                  const margen = p.costoUsd > 0
-                    ? (((p.precioUsd - p.costoUsd) / p.precioUsd) * 100).toFixed(0)
-                    : null;
+                  const margen =
+                    p.costoUsd > 0
+                      ? (((p.precioUsd - p.costoUsd) / p.precioUsd) * 100).toFixed(0)
+                      : null;
                   return (
-                    <tr key={p.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.codigo}</td>
+                    <tr
+                      key={p.id}
+                      className="border-b last:border-0 hover:bg-muted/20 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {p.codigo}
+                      </td>
                       <td className="px-4 py-3">
                         <span className="font-medium">{p.nombre}</span>
                         {margen && (
-                          <span className="ml-2 text-xs text-emerald-600 font-semibold">+{margen}%</span>
+                          <span className="ml-2 text-xs text-emerald-600 font-semibold">
+                            +{margen}%
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary">{p.categoria}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{p.talla}</span>
+                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                          {p.talla}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{p.color}</td>
                       <td className="px-4 py-3 text-right text-muted-foreground text-xs">
                         {p.costoUsd > 0 ? formatMoneyUsd(p.costoUsd) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold">{formatMoneyUsd(p.precioUsd)}</td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        {formatMoneyUsd(p.precioUsd)}
+                      </td>
                       <td className="px-4 py-3 text-right text-muted-foreground text-xs">
-                        Bs. {precioBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                        Bs.{" "}
+                        {precioBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {stockBajo ? (
@@ -278,7 +330,12 @@ export default function Inventario() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => abrirEditar(p)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => abrirEditar(p)}
+                          >
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button
@@ -300,7 +357,7 @@ export default function Inventario() {
         </div>
       </div>
 
-      {/* Dialog */}
+      {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -309,69 +366,166 @@ export default function Inventario() {
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="space-y-1.5">
               <Label>Código interno</Label>
-              <Input value={form.codigo} onChange={(e) => setForm((f) => ({ ...f, codigo: e.target.value }))} placeholder="VES-001" />
+              <Input
+                value={form.codigo}
+                onChange={(e) => setForm((f) => ({ ...f, codigo: e.target.value }))}
+                placeholder="VES-001"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Nombre</Label>
-              <Input value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} placeholder="Vestido Floral" />
+              <Input
+                value={form.nombre}
+                onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+                placeholder="Vestido Floral"
+              />
             </div>
-            <div className="space-y-1.5">
-              <Label>Categoría</Label>
-              <Select value={form.categoria} onValueChange={(v) => setForm((f) => ({ ...f, categoria: v }))}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIAS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+
+            {/* Categoría — lista o manual */}
+            <div className="col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Categoría</Label>
+                <button
+                  type="button"
+                  className="text-xs text-primary underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setCategoriaMode((m) => (m === "lista" ? "manual" : "lista"));
+                    setForm((f) => ({ ...f, categoria: "", categoriaCustom: "" }));
+                  }}
+                >
+                  {categoriaMode === "lista" ? "Escribir manualmente" : "Elegir de lista"}
+                </button>
+              </div>
+              {categoriaMode === "lista" ? (
+                <Select
+                  value={form.categoria}
+                  onValueChange={(v) => setForm((f) => ({ ...f, categoria: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS_SUGERIDAS.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={form.categoriaCustom}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, categoriaCustom: e.target.value }))
+                  }
+                  placeholder="Ej: Ropa de Baño, Jeans, Chaquetas..."
+                  autoFocus
+                />
+              )}
             </div>
+
+            {/* Talla */}
             <div className="space-y-1.5">
               <Label>Talla</Label>
-              <Select value={form.talla} onValueChange={(v) => setForm((f) => ({ ...f, talla: v }))}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <Select
+                value={form.talla}
+                onValueChange={(v) => setForm((f) => ({ ...f, talla: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar" />
+                </SelectTrigger>
                 <SelectContent>
-                  {TALLAS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {TALLAS.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1.5">
               <Label>Color</Label>
-              <Input value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} placeholder="Rosado" />
+              <Input
+                value={form.color}
+                onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                placeholder="Rosado"
+              />
             </div>
+
             <div className="space-y-1.5">
               <Label>Costo (USD)</Label>
-              <Input type="number" step="0.01" min="0" value={form.costoUsd} onChange={(e) => setForm((f) => ({ ...f, costoUsd: e.target.value }))} placeholder="0.00" />
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.costoUsd}
+                onChange={(e) => setForm((f) => ({ ...f, costoUsd: e.target.value }))}
+                placeholder="0.00"
+              />
             </div>
+
             <div className="space-y-1.5">
               <Label>Precio venta (USD)</Label>
-              <Input type="number" step="0.01" min="0" value={form.precioUsd} onChange={(e) => setForm((f) => ({ ...f, precioUsd: e.target.value }))} placeholder="0.00" />
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.precioUsd}
+                onChange={(e) => setForm((f) => ({ ...f, precioUsd: e.target.value }))}
+                placeholder="0.00"
+              />
             </div>
+
             {form.precioUsd && (
               <div className="space-y-1.5">
                 <Label>Precio en Bs. (referencial)</Label>
                 <div className="h-10 flex items-center px-3 rounded-md border bg-muted/50 text-sm font-semibold">
-                  Bs. {(parseFloat(form.precioUsd || "0") * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                  Bs.{" "}
+                  {(parseFloat(form.precioUsd || "0") * tasaBcv).toLocaleString("es-VE", {
+                    minimumFractionDigits: 2,
+                  })}
                 </div>
               </div>
             )}
+
             <div className="space-y-1.5">
               <Label>Stock actual</Label>
-              <Input type="number" min="0" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} placeholder="0" />
+              <Input
+                type="number"
+                min="0"
+                value={form.stock}
+                onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                placeholder="0"
+              />
             </div>
+
             <div className="space-y-1.5">
               <Label>Stock mínimo</Label>
-              <Input type="number" min="0" value={form.stockMinimo} onChange={(e) => setForm((f) => ({ ...f, stockMinimo: e.target.value }))} placeholder="3" />
+              <Input
+                type="number"
+                min="0"
+                value={form.stockMinimo}
+                onChange={(e) => setForm((f) => ({ ...f, stockMinimo: e.target.value }))}
+                placeholder="3"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleSubmit} disabled={!formValid || isSubmitting}>
-              {isSubmitting ? "Guardando..." : editando ? "Guardar Cambios" : "Crear Producto"}
+              {isSubmitting
+                ? "Guardando..."
+                : editando
+                ? "Guardar Cambios"
+                : "Crear Producto"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={eliminarId !== null} onOpenChange={(open) => !open && setEliminarId(null)}>
+      <AlertDialog
+        open={eliminarId !== null}
+        onOpenChange={(open) => !open && setEliminarId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar producto</AlertDialogTitle>
